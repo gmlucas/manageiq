@@ -922,6 +922,7 @@
   :level_fog: info
   :level_mw: info
   :level_nuage: info
+  :level_supernsx: debug
   :level_policy: info
   :level_scvmm: info
   :level_vcloud: info
@@ -1207,6 +1208,7 @@
         :ems_refresh_worker_google_network: {}
         :ems_refresh_worker_microsoft: {}
         :ems_refresh_worker_nuage_network: {}
+        :ems_refresh_worker_supernsx_network: {}
         :ems_refresh_worker_cinder: {}
         :ems_refresh_worker_swift: {}
       :event_handler:

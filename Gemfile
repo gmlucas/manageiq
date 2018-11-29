@@ -82,6 +82,17 @@ gem "american_date"
 # This default is used to automatically require all of our gems in processes that don't specify which bundler groups they want.
 #
 ### providers
+
+## kivesszük innen a supernsx hivatkozást, és egyelőre megpróbáljuk a bundler.d-ben található hivatkozással használni
+## úgy tűnik nem megy: unknown gem-re hivatkozik... akkor megszűntetjük a bundler-d-s hivatkozást...
+
+group :supernsx, :manageiq_default do
+#  manageiq_plugin "manageiq-providers-supernsx"
+#  gem "manageiq-providers-supernsx", :git => "https://github.com/gmlucas/manageiq-providers-supernsx.git", :branch => "master"
+# ez jó, repo-ból  gem "manageiq-providers-supernsx", :git => "https://gmlucas@bitbucket.org/gmlucas/manageiq-providers-supernsx.git", :branch => "master"
+  gem "manageiq-providers-supernsx", :path => "/home/gellert/sources/manageiq-providers-supernsx"
+end
+
 group :amazon, :manageiq_default do
   manageiq_plugin "manageiq-providers-amazon"
   gem "amazon_ssa_support",                          :require => false, :git => "https://github.com/ManageIQ/amazon_ssa_support.git", :branch => "master" # Temporary dependency to be moved to manageiq-providers-amazon when officially release
