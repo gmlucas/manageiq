@@ -27,6 +27,7 @@ gem "acts_as_tree",                   "~>2.7" # acts_as_tree needs to be require
 gem "ancestry",                       "~>3.0.4",       :require => false
 gem "bcrypt",                         "~> 3.1.10",     :require => false
 gem "bundler",                        ">=1.11.1",      :require => false
+gem "byebug",                                          :require => false
 gem "color",                          "~>1.8"
 gem "config",                         "~>1.6.0",       :require => false
 gem "dalli",                          "=2.7.6",        :require => false
@@ -40,7 +41,7 @@ gem "hamlit",                         "~>2.8.5"
 gem "highline",                       "~>1.6.21",      :require => false
 gem "inifile",                        "~>3.0",         :require => false
 gem "inventory_refresh",              "~>0.1.1",       :require => false
-gem "kubeclient",                     "~>2.4",         :require => false # For scaling pods at runtime
+gem "kubeclient",                     "~>4.0",         :require => false # For scaling pods at runtime
 gem "linux_admin",                    "~>1.2.1",       :require => false
 gem "log_decorator",                  "~>0.1",         :require => false
 gem "manageiq-api-client",            "~>0.3.2",       :require => false
@@ -56,7 +57,7 @@ gem "openscap",                       "~>0.4.8",       :require => false
 gem "pg",                             "~>0.18.2",      :require => false
 gem "pg-dsn_parser",                  "~>0.1.0",       :require => false
 gem "query_relation",                 "~>0.1.0",       :require => false
-gem "rails",                          "~>5.0.6"
+gem "rails",                          "~>5.0.7.1"
 gem "rails-i18n",                     "~>5.x"
 gem "rake",                           ">=11.0",        :require => false
 gem "rest-client",                    "~>2.0.0",       :require => false
@@ -163,10 +164,6 @@ group :google, :openshift, :manageiq_default do
   gem "sshkey",                         "~>1.8.0",       :require => false
 end
 
-group :automate, :cockpit, :manageiq_default do
-  gem "open4",                          "~>1.3.0",       :require => false
-end
-
 ### end of provider bundler groups
 
 group :automate, :seed, :manageiq_default do
@@ -221,6 +218,7 @@ group :web_server, :manageiq_default do
 end
 
 group :web_socket, :manageiq_default do
+  gem "surro-gate",                     "~>1.0.4"
   gem "websocket-driver",               "~>0.6.3"
 end
 
@@ -243,7 +241,7 @@ unless ENV["APPLIANCE"]
     gem "brakeman",         "~>3.3",    :require => false
     gem "capybara",         "~>2.5.0",  :require => false
     gem "coveralls",                    :require => false
-    gem "factory_girl",     "~>4.5.0",  :require => false
+    gem "factory_bot",      "~>4.11.1", :require => false
     gem "timecop",          "~>0.7.3",  :require => false
     gem "vcr",              "~>3.0.2",  :require => false
     gem "webmock",          "~>2.3.1",  :require => false
@@ -266,7 +264,13 @@ end
 def override_gem(name, *args)
   if dependencies.any?
     raise "Trying to override unknown gem #{name}" unless (dependency = dependencies.find { |d| d.name == name })
-    dependencies.delete(dependency)
+
+    removed_dependency = dependencies.delete(dependency)
+    if removed_dependency.source.kind_of?(Bundler::Source::Git)
+      @sources.send(:source_list_for, removed_dependency.source).delete_if do |other_source|
+        removed_dependency.source == other_source
+      end
+    end
 
     calling_file = caller_locations.detect { |loc| !loc.path.include?("lib/bundler") }.path
     calling_dir  = File.dirname(calling_file)

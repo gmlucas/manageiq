@@ -316,7 +316,7 @@ class VmOrTemplate < ApplicationRecord
 
   # TODO: Vmware specific, and is this even being used anywhere?
   def connected_to_ems?
-    connection_state == 'connected'
+    connection_state == 'connected' || connection_state.nil?
   end
 
   def terminated?
@@ -663,7 +663,7 @@ class VmOrTemplate < ApplicationRecord
     end
 
     disconnect_host
-
+    disconnect_storage
     disconnect_stack if respond_to?(:orchestration_stack)
   end
 
@@ -1319,10 +1319,10 @@ class VmOrTemplate < ApplicationRecord
   end)
 
   def disconnected?
-    connection_state != "connected"
+    !connected_to_ems?
   end
   virtual_attribute :disconnected, :boolean, :arel => (lambda do |t|
-    t.grouping(t[:connection_state].eq(nil).or(t[:connection_state].not_eq("connected")))
+    t.grouping(t[:connection_state].not_eq(nil).and(t[:connection_state].not_eq("connected")))
   end)
   alias_method :disconnected, :disconnected?
 
@@ -1761,13 +1761,25 @@ class VmOrTemplate < ApplicationRecord
     vms.all?(&:reconfigurable?)
   end
 
+  PUBLIC_TEMPLATE_CLASSES = %w(ManageIQ::Providers::Openstack::CloudManager::Template).freeze
+
   def self.tenant_id_clause(user_or_group)
     template_tenant_ids = MiqTemplate.accessible_tenant_ids(user_or_group, Rbac.accessible_tenant_ids_strategy(MiqTemplate))
     vm_tenant_ids       = Vm.accessible_tenant_ids(user_or_group, Rbac.accessible_tenant_ids_strategy(Vm))
     return if template_tenant_ids.empty? && vm_tenant_ids.empty?
 
-    ["(vms.template = true AND vms.tenant_id IN (?)) OR (vms.template = false AND vms.tenant_id IN (?))",
-     template_tenant_ids, vm_tenant_ids]
+    tenant = user_or_group.current_tenant
+    tenant_vms       = "vms.template = false AND vms.tenant_id IN (?)"
+    public_templates = "vms.template = true AND vms.publicly_available = true AND vms.type IN (?)"
+    tenant_templates = "vms.template = true AND vms.tenant_id IN (?)"
+
+    if tenant.source_id
+      private_tenant_templates = "vms.template = true AND vms.tenant_id = (?) AND vms.publicly_available = false"
+      tenant_templates += " AND vms.type NOT IN (?)"
+      ["#{private_tenant_templates} OR #{tenant_vms} OR #{tenant_templates} OR #{public_templates}", tenant.id, vm_tenant_ids, template_tenant_ids, PUBLIC_TEMPLATE_CLASSES, PUBLIC_TEMPLATE_CLASSES]
+    else
+      ["#{tenant_templates} OR #{public_templates} OR #{tenant_vms}", template_tenant_ids, PUBLIC_TEMPLATE_CLASSES, vm_tenant_ids]
+    end
   end
 
   def self.with_ownership
